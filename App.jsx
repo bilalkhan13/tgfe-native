@@ -1,17 +1,42 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  StyleSheet,
+  Text,
+  View,
+  Easing,
+  Dimensions,
+} from 'react-native';
 import { fetchDealsSearchResults, fetchInitialDeals } from './src/services/api';
 import DealList from './src/components/DealList';
 import DealDetails from './src/components/DealDetails';
 import Searchbar from './src/components/Searchbar';
 
 export default function App() {
+  const titleXPos = new Animated.Value(0);
   const [deals, setDeals] = useState([]);
   const [currentDealId, setCurrentDealId] = useState(null);
   const [dealsFormSearch, setDealsFormSearch] = useState([]);
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
+
+
+  const animatedTitle = (direction = 1) => {
+    const width = Dimensions.get('window').width - 150;
+    Animated.timing(titleXPos, {
+      toValue: direction * (width / 2),
+      duration: 3000,
+      easing: Easing.ease,
+      useNativeDriver: true, // Specify useNativeDriver as true
+    }).start(({ finished }) => {
+      finished &&
+      animatedTitle(-1 * direction);
+    });
+  };
 
   useEffect(() => {
+    animatedTitle();
+
     async function fetchData() {
       const dealsList = await fetchInitialDeals();
       setDeals(dealsList);
@@ -26,6 +51,7 @@ export default function App() {
 
   const searchDeals = async (searchTerm) => {
     searchTerm && setDealsFormSearch(await fetchDealsSearchResults(searchTerm));
+    setActiveSearchTerm(searchTerm);
   };
 
   const clearSearch = () => {
@@ -42,6 +68,10 @@ export default function App() {
 
   const dealsToDisplay = dealsFormSearch.length > 0 ? dealsFormSearch : deals;
 
+  const animatedStyle = {
+    transform: [{ translateX: titleXPos }],
+  };
+
   return (
     <View style={styles.container}>
       {currentDealId ? (
@@ -50,13 +80,13 @@ export default function App() {
         </View>
       ) : dealsToDisplay.length > 0 ? (
         <View style={styles.main}>
-          <Searchbar searchDeals={searchDeals} />
+          <Searchbar searchDeals={searchDeals} initialSearchTerm={activeSearchTerm}/>
           <DealList deals={dealsToDisplay} onItemPress={setCurrentDeal} />
         </View>
       ) : (
-        <View style={styles.centerContent}>
+        <Animated.View style={[ animatedStyle, styles.centerContent]}>
           <Text>Loading...!</Text>
-        </View>
+        </Animated.View>
       )}
       <StatusBar style="auto" />
     </View>

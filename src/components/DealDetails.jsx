@@ -1,11 +1,68 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Image, StyleSheet, Text, View, Pressable } from 'react-native';
+import { Image, StyleSheet, Text, View, Pressable, ScrollView, PanResponder, Animated, Button, Linking} from 'react-native';
 import { priceDisplay } from '../utils/utils';
 import { fetchDealDetail } from '../services/api';
+import { Dimensions } from 'react-native';
 
 const DealDetails = ({ initialDeal, onBack }) => {
   const [deal, setDeal] = useState(null);
+  const [imageIndex, setImageIndex] = useState(0);
+  const imageXPos = new Animated.Value(0);
+  const width = Dimensions.get('window').width - 150;
+
+
+  const handleSwipe = (indexDirection) => {
+    if (deal.media[imageIndex + indexDirection]) {
+      Animated.spring(imageXPos, {
+        useNativeDriver: true,
+        toValue: -indexDirection * width,
+      }).start(() => {
+        // Next image
+        imageXPos.setValue(width);
+        setImageIndex((prevState) => imageIndex + indexDirection);
+      });
+    } else {
+      Animated.spring(imageXPos, {
+        useNativeDriver: true,
+        toValue: 0,
+      }).start()
+    }
+  };
+
+
+  const openDealUrl = () => {
+    Linking.openURL(deal.url)
+  }
+
+  const animatedStyle = {
+    transform: [{ translateX: imageXPos }],
+  };
+
+
+  const imagePanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderMove: (evt, gs) => {
+      imageXPos.setValue(gs.dx);
+    },
+    onPanResponderRelease: (evt, gs) => {
+      if (Math.abs(gs.dx) > width * 0.4) {
+        const direction = Math.sign(gs.dx);
+        Animated.timing(imageXPos, {
+          toValue: direction * width,
+          duration: 250,
+          useNativeDriver: true,
+        }).start(() => {
+          handleSwipe(-direction);
+        });
+      } else {
+        Animated.spring(imageXPos, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
+      }
+    },
+  });
 
   useEffect(() => {
     async function fetchData() {
@@ -31,12 +88,12 @@ const DealDetails = ({ initialDeal, onBack }) => {
       <Pressable onPress={onBack}>
         <Text style={styles.backLink}>Back</Text>
       </Pressable>
-      <Image source={{ uri: deal?.media?.[0] }} style={styles.image} />
+      <Animated.Image {...imagePanResponder.panHandlers} source={{ uri: deal?.media?.[imageIndex] }} style={[animatedStyle,styles.image]} />
 
       <View>
         <Text style={styles.title}>{deal?.title}</Text>
       </View>
-      <View style={styles.detail}>
+      <ScrollView style={styles.detail}>
         <View style={styles.footer}>
           <View style={styles.info}>
             <Image source={{ uri: deal?.user?.avatar }} style={styles.avatar} />
@@ -50,7 +107,8 @@ const DealDetails = ({ initialDeal, onBack }) => {
         <View style={styles.desc}>
           <Text>{deal?.description}</Text>
         </View>
-      </View>
+        <Button title='Buy this deal' onPress={openDealUrl}/>
+      </ScrollView>
     </View>
   );
 };
@@ -58,6 +116,7 @@ const DealDetails = ({ initialDeal, onBack }) => {
 const styles = StyleSheet.create({
   deal: {
     marginHorizontal: 12,
+    marginTop: 15
   },
   loadingContainer: {
     alignItems: 'center',
@@ -113,13 +172,14 @@ const styles = StyleSheet.create({
   avatar: {
     width: 60,
     height: 60,
-    borderRadius: '50%',
+    // borderRadius: 50,
   },
 });
 
 DealDetails.propTypes = {
   initialDeal: PropTypes.object.isRequired,
   onBack: PropTypes.func.isRequired,
+  imageIndex: PropTypes.number
 };
 
 export default DealDetails;

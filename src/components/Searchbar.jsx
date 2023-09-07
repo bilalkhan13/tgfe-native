@@ -3,8 +3,9 @@ import { StyleSheet, TextInput } from 'react-native';
 import PropTypes from 'prop-types';
 import debounce from 'lodash.debounce';
 
-const Searchbar = ({ searchDeals }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+const Searchbar = ({ searchDeals, initialSearchTerm }) => {
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+
 
   const debouncedSearchDeals = debounce(searchDeals, 300);
 
@@ -13,8 +14,15 @@ const Searchbar = ({ searchDeals }) => {
     debouncedSearchDeals(text);
   };
 
+  searchDeals = () => {
+    searchDeals(searchTerm);
+    input.blur();
+  }
+
   return (
     <TextInput
+    ref={(inputElement)=>{inputElement}}
+    value={searchTerm}
       placeholder="Search All Deals"
       style={styles.input}
       onChangeText={handleChange} // Use onChangeText instead of onChange
@@ -32,6 +40,7 @@ const styles = StyleSheet.create({
 
 Searchbar.propTypes = {
   searchDeals: PropTypes.func.isRequired,
+  initialSearchTerm: PropTypes.string.isRequired,
 };
 
 export default Searchbar;
